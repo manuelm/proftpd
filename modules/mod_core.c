@@ -2,7 +2,7 @@
  * ProFTPD - FTP server daemon
  * Copyright (c) 1997, 1998 Public Flood Software
  * Copyright (c) 1999, 2000 MacGyver aka Habeeb J. Dihu <macgyver@tos.net>
- * Copyright (c) 2001-2021 The ProFTPD Project team
+ * Copyright (c) 2001-2022 The ProFTPD Project team
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -5626,6 +5626,10 @@ MODRET core_mkd(cmd_rec *cmd) {
     return PR_ERROR(cmd);
   }
 
+  pr_trace_msg("fileperms", 9, "%s, user '%s' (UID %s, GID %s): "
+    "creating directory '%s'", (char *) cmd->argv[0], session.user,
+    pr_uid2str(cmd->tmp_pool, session.fsuid),
+    pr_gid2str(cmd->tmp_pool, session.fsgid), dir);
   if (pr_fsio_smkdir(cmd->tmp_pool, dir, 0777, session.fsuid,
       session.fsgid) < 0) {
     int xerrno = errno;

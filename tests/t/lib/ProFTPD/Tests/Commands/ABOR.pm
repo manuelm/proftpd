@@ -231,6 +231,7 @@ sub abor_retr_binary_ok {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     TimeoutLinger => 5,
 
@@ -259,6 +260,9 @@ sub abor_retr_binary_ok {
   defined(my $pid = fork()) or die("Can't fork: $!");
   if ($pid) {
     eval {
+      # Allow server to start up
+      sleep(1);
+
       my $client = ProFTPD::TestSuite::FTP->new('127.0.0.1', $port);
       $client->login($setup->{user}, $setup->{passwd});
       $client->pasv();
@@ -273,7 +277,8 @@ sub abor_retr_binary_ok {
       # Read 128 bytes of the file, then abort the download
       my $buf;
       $conn->read($buf, 128, 30);
-      eval { $conn->abort() };
+      eval { $conn->abort(5) };
+      sleep(1);
 
       my $resp_code = $client->response_code();
       my $resp_msg = $client->response_msg();
@@ -330,6 +335,7 @@ sub abor_retr_ascii_ok {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     TimeoutLinger => 5,
 
@@ -439,6 +445,7 @@ sub abor_retr_ascii_largefile_ok {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     TimeoutLinger => 5,
 
@@ -487,26 +494,10 @@ sub abor_retr_ascii_largefile_ok {
       my $resp_msg = $client->response_msg();
       $self->assert_transfer_ok($resp_code, $resp_msg, 1);
 
-      # We expect 2 responses here: first, a 426 for the aborted data transfer,
-      # followed by 226 for the successful ABOR command.  Order matters.
-      my $resp_msgs = $client->response_msgs();
-
-      my $resp_nmsgs = scalar(@$resp_msgs);
-      $self->assert($resp_nmsgs == 2,
-        test_msg("Expected 2 responses, got $resp_nmsgs"));
-
-      my $expected = 'Transfer aborted. Data connection closed.';
-      $self->assert($expected eq $resp_msgs->[0],
-        test_msg("Expected response message '$expected', got '$resp_msgs->[0]'"));
-
-      $expected = 'Abort successful';
-      $self->assert($expected eq $resp_msgs->[1],
-        test_msg("Expected response message '$expected', got '$resp_msgs->[1]'"));
-
       # Make sure the control connection did not close because of the abort.
       ($resp_code, $resp_msg) = $client->quit();
 
-      $expected = 221;
+      my $expected = 221;
       $self->assert($expected == $resp_code,
         test_msg("Expected response code $expected, got $resp_code"));
 
@@ -564,6 +555,7 @@ sub abor_retr_ascii_largefile_followed_by_list_ok {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     TimeoutLinger => 5,
 
@@ -724,6 +716,7 @@ sub abor_retr_binary_largefile_followed_by_retr_ok {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     TimeoutLinger => 1,
     TimeoutIdle => 15,
@@ -861,6 +854,7 @@ sub abor_retr_binary_largefile_with_sendfile {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     TimeoutLinger => 5,
 
@@ -913,26 +907,10 @@ sub abor_retr_binary_largefile_with_sendfile {
       my $resp_msg = $client->response_msg();
       $self->assert_transfer_ok($resp_code, $resp_msg, 1);
 
-      # We expect 2 responses here: first, a 426 for the aborted data transfer,
-      # followed by 226 for the successful ABOR command.  Order matters.
-      my $resp_msgs = $client->response_msgs();
-
-      my $resp_nmsgs = scalar(@$resp_msgs);
-      $self->assert($resp_nmsgs == 2,
-        test_msg("Expected 2 responses, got $resp_nmsgs"));
-
-      my $expected = 'Transfer aborted. Data connection closed.';
-      $self->assert($expected eq $resp_msgs->[0],
-        test_msg("Expected response message '$expected', got '$resp_msgs->[0]'"));
-
-      $expected = 'Abort successful';
-      $self->assert($expected eq $resp_msgs->[1],
-        test_msg("Expected response message '$expected', got '$resp_msgs->[1]'"));
-
       # Make sure the control connection did not close because of the abort.
       ($resp_code, $resp_msg) = $client->quit();
 
-      $expected = 221;
+      my $expected = 221;
       $self->assert($expected == $resp_code,
         test_msg("Expected response code $expected, got $resp_code"));
 
@@ -990,6 +968,7 @@ sub abor_retr_binary_largefile_without_sendfile {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     TimeoutLinger => 5,
     UseSendfile => 'off',
@@ -1039,26 +1018,10 @@ sub abor_retr_binary_largefile_without_sendfile {
       my $resp_msg = $client->response_msg();
       $self->assert_transfer_ok($resp_code, $resp_msg, 1);
 
-      # We expect 2 responses here: first, a 426 for the aborted data transfer,
-      # followed by 226 for the successful ABOR command.  Order matters.
-      my $resp_msgs = $client->response_msgs();
-
-      my $resp_nmsgs = scalar(@$resp_msgs);
-      $self->assert($resp_nmsgs == 2,
-        test_msg("Expected 2 responses, got $resp_nmsgs"));
-
-      my $expected = 'Transfer aborted. Data connection closed.';
-      $self->assert($expected eq $resp_msgs->[0],
-        test_msg("Expected response message '$expected', got '$resp_msgs->[0]'"));
-
-      $expected = 'Abort successful';
-      $self->assert($expected eq $resp_msgs->[1],
-        test_msg("Expected response message '$expected', got '$resp_msgs->[1]'"));
-
       # Make sure the control connection did not close because of the abort.
       ($resp_code, $resp_msg) = $client->quit();
 
-      $expected = 221;
+      my $expected = 221;
       $self->assert($expected == $resp_code,
         test_msg("Expected response code $expected, got $resp_code"));
 
@@ -1106,6 +1069,7 @@ sub abor_stor_binary_ok {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     TimeoutLinger => 5,
 
@@ -1154,26 +1118,10 @@ sub abor_stor_binary_ok {
       my $resp_msg = $client->response_msg();
       $self->assert_transfer_ok($resp_code, $resp_msg, 1);
 
-      # We expect 2 responses here: first, a 426 for the aborted data transfer,
-      # followed by 226 for the successful ABOR command.  Order matters.
-      my $resp_msgs = $client->response_msgs();
-
-      my $resp_nmsgs = scalar(@$resp_msgs);
-      $self->assert($resp_nmsgs == 2,
-        test_msg("Expected 2 responses, got $resp_nmsgs"));
-
-      my $expected = 'Transfer aborted. Data connection closed.';
-      $self->assert($expected eq $resp_msgs->[0],
-        test_msg("Expected response message '$expected', got '$resp_msgs->[0]'"));
-
-      $expected = 'Abort successful';
-      $self->assert($expected eq $resp_msgs->[1],
-        test_msg("Expected response message '$expected', got '$resp_msgs->[1]'"));
-
       # Make sure the control connection did not close because of the abort.
       ($resp_code, $resp_msg) = $client->quit();
 
-      $expected = 221;
+      my $expected = 221;
       $self->assert($expected == $resp_code,
         test_msg("Expected response message $expected, got $resp_code"));
 
@@ -1221,6 +1169,7 @@ sub abor_stor_ascii_ok {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     TimeoutLinger => 5,
 
@@ -1269,26 +1218,10 @@ sub abor_stor_ascii_ok {
       my $resp_msg = $client->response_msg();
       $self->assert_transfer_ok($resp_code, $resp_msg, 1);
 
-      # We expect 2 responses here: first, a 426 for the aborted data transfer,
-      # followed by 226 for the successful ABOR command.  Order matters.
-      my $resp_msgs = $client->response_msgs();
-
-      my $resp_nmsgs = scalar(@$resp_msgs);
-      $self->assert($resp_nmsgs == 2,
-        test_msg("Expected 2 responses, got $resp_nmsgs"));
-
-      my $expected = 'Transfer aborted. Data connection closed.';
-      $self->assert($expected eq $resp_msgs->[0],
-        test_msg("Expected response message '$expected', got '$resp_msgs->[0]'"));
-
-      $expected = 'Abort successful';
-      $self->assert($expected eq $resp_msgs->[1],
-        test_msg("Expected response message '$expected', got '$resp_msgs->[1]'"));
-
       # Make sure the control connection did not close because of the abort.
       ($resp_code, $resp_msg) = $client->quit();
 
-      $expected = 221;
+      my $expected = 221;
       $self->assert($expected == $resp_code,
         test_msg("Expected response message $expected, got $resp_code"));
 
@@ -1336,6 +1269,7 @@ sub abor_with_cyrillic_encoding_ok {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     TimeoutLinger => 15,
 
@@ -1455,6 +1389,7 @@ sub abor_no_xfer_ok {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     TimeoutLinger => 5,
 
@@ -1540,6 +1475,7 @@ sub abor_list_ok {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     TimeoutLinger => 5,
 
@@ -1590,26 +1526,10 @@ sub abor_list_ok {
       my $resp_msg = $client->response_msg();
       $self->assert_transfer_ok($resp_code, $resp_msg, 1);
 
-      # We expect 2 responses here: first, a 426 for the aborted data transfer,
-      # followed by 226 for the successful ABOR command.  Order matters.
-      my $resp_msgs = $client->response_msgs();
-
-      my $resp_nmsgs = scalar(@$resp_msgs);
-      $self->assert($resp_nmsgs == 2,
-        test_msg("Expected 2 responses, got $resp_nmsgs"));
-
-      my $expected = 'Transfer aborted. Data connection closed.';
-      $self->assert($expected eq $resp_msgs->[0],
-        test_msg("Expected response message '$expected', got '$resp_msgs->[0]'"));
-
-      $expected = 'Abort successful';
-      $self->assert($expected eq $resp_msgs->[1],
-        test_msg("Expected response message '$expected', got '$resp_msgs->[1]'"));
-
       # Make sure the control connection did not close because of the abort.
       ($resp_code, $resp_msg) = $client->quit();
 
-      $expected = 221;
+      my $expected = 221;
       $self->assert($expected == $resp_code,
         test_msg("Expected response code $expected, got $resp_code"));
 
@@ -1668,6 +1588,7 @@ sub abor_mlsd_ok {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     TimeoutLinger => 5,
 
@@ -1714,26 +1635,10 @@ sub abor_mlsd_ok {
       my $resp_msg = $client->response_msg();
       $self->assert_transfer_ok($resp_code, $resp_msg, 1);
 
-      # We expect 2 responses here: first, a 426 for the aborted data transfer,
-      # followed by 226 for the successful ABOR command.  Order matters.
-      my $resp_msgs = $client->response_msgs();
-
-      my $resp_nmsgs = scalar(@$resp_msgs);
-      $self->assert($resp_nmsgs == 2,
-        test_msg("Expected 2 responses, got $resp_nmsgs"));
-
-      my $expected = 'Transfer aborted. Data connection closed.';
-      $self->assert($expected eq $resp_msgs->[0],
-        test_msg("Expected response message '$expected', got '$resp_msgs->[0]'"));
-
-      $expected = 'Abort successful';
-      $self->assert($expected eq $resp_msgs->[1],
-        test_msg("Expected response message '$expected', got '$resp_msgs->[1]'"));
-
       # Make sure the control connection did not close because of the abort.
       ($resp_code, $resp_msg) = $client->quit();
 
-      $expected = 221;
+      my $expected = 221;
       $self->assert($expected == $resp_code,
         test_msg("Expected response code $expected, got $resp_code"));
 
@@ -1778,9 +1683,19 @@ sub abor_only_retr_ascii {
       die("Can't write $test_file: $!");
     }
 
+    # Make sure that, if we're running as root, that the test file has
+    # permissions/privs set for the account we create
+    if ($< == 0) {
+      unless (chown($setup->{uid}, $setup->{gid}, $test_file)) {
+        die("Can't set owner of $test_file to $setup->{uid}/$setup->{gid}: $!");
+      }
+    }
+
   } else {
     die("Can't open $test_file: $!");
   }
+
+  my $timeout_linger = 1;
 
   my $config = {
     PidFile => $setup->{pid_file},
@@ -1791,8 +1706,9 @@ sub abor_only_retr_ascii {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
-    TimeoutLinger => 5,
+    TimeoutLinger => $timeout_linger,
 
     IfModules => {
       'mod_delay.c' => {
@@ -1819,6 +1735,9 @@ sub abor_only_retr_ascii {
   defined(my $pid = fork()) or die("Can't fork: $!");
   if ($pid) {
     eval {
+      # Allow server to start up
+      sleep(1);
+
       my $client = ProFTPD::TestSuite::FTP->new('127.0.0.1', $port);
       $client->login($setup->{user}, $setup->{passwd});
       $client->pasv();
@@ -1838,27 +1757,18 @@ sub abor_only_retr_ascii {
       unless ($@) {
         die("ABOR succeeded unexpectedly");
       }
+      sleep($timeout_linger + 1);
 
       # We expect 2 responses here: first, a 426 for the aborted data transfer,
       # followed by 226 for the successful ABOR command.  Order matters.
-      my $resp_msgs = $client->response_msgs();
-
-      my $resp_nmsgs = scalar(@$resp_msgs);
-      $self->assert($resp_nmsgs == 2,
-        test_msg("Expected 2 responses, got $resp_nmsgs"));
-
-      my $expected = 'Transfer aborted. Data connection closed.';
-      $self->assert($expected eq $resp_msgs->[0],
-        test_msg("Expected response message '$expected', got '$resp_msgs->[0]'"));
-
-      $expected = 'Abort successful';
-      $self->assert($expected eq $resp_msgs->[1],
-        test_msg("Expected response message '$expected', got '$resp_msgs->[1]'"));
+      my $resp_code = $client->response_code();
+      my $resp_msg = $client->response_msg();
+      $self->assert_transfer_ok($resp_code, $resp_msg, 1);
 
       # Make sure the control connection did not close because of the abort.
-      my ($resp_code, $resp_msg) = $client->quit();
+      ($resp_code, $resp_msg) = $client->quit();
 
-      $expected = 221;
+      my $expected = 221;
       $self->assert($expected == $resp_code,
         test_msg("Expected response code $expected, got $resp_code"));
 
@@ -1903,9 +1813,19 @@ sub abor_only_retr_binary_with_sendfile {
       die("Can't write $test_file: $!");
     }
 
+    # Make sure that, if we're running as root, that the test file has
+    # permissions/privs set for the account we create
+    if ($< == 0) {
+      unless (chown($setup->{uid}, $setup->{gid}, $test_file)) {
+        die("Can't set owner of $test_file to $setup->{uid}/$setup->{gid}: $!");
+      }
+    }
+
   } else {
     die("Can't open $test_file: $!");
   }
+
+  my $timeout_linger = 1;
 
   my $config = {
     PidFile => $setup->{pid_file},
@@ -1916,8 +1836,9 @@ sub abor_only_retr_binary_with_sendfile {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
-    TimeoutLinger => 5,
+    TimeoutLinger => $timeout_linger,
 
     IfModules => {
       'mod_delay.c' => {
@@ -1948,6 +1869,9 @@ sub abor_only_retr_binary_with_sendfile {
   defined(my $pid = fork()) or die("Can't fork: $!");
   if ($pid) {
     eval {
+      # Allow server to start up
+      sleep(1);
+
       my $client = ProFTPD::TestSuite::FTP->new('127.0.0.1', $port);
       $client->login($setup->{user}, $setup->{passwd});
       $client->type('binary');
@@ -1969,28 +1893,19 @@ sub abor_only_retr_binary_with_sendfile {
       if ($@) {
         die("ABOR failed unexpectedly");
       }
+      sleep($timeout_linger + 1);
 
       # We expect 2 responses here: first, a 226 for the (completed) data
       # transfer, followed by 226 for the successful ABOR command.  Order
       # matters.
-      my $resp_msgs = $client->response_msgs();
-
-      my $resp_nmsgs = scalar(@$resp_msgs);
-      $self->assert($resp_nmsgs == 2,
-        test_msg("Expected 2 responses, got $resp_nmsgs"));
-
-      my $expected = 'Transfer complete';
-      $self->assert($expected eq $resp_msgs->[0],
-        test_msg("Expected response message '$expected', got '$resp_msgs->[0]'"));
-
-      $expected = 'Abort successful';
-      $self->assert($expected eq $resp_msgs->[1],
-        test_msg("Expected response message '$expected', got '$resp_msgs->[1]'"));
+      my $resp_code = $client->response_code();
+      my $resp_msg = $client->response_msg();
+      $self->assert_transfer_ok($resp_code, $resp_msg, 1);
 
       # Make sure the control connection did not close because of the abort.
-      my ($resp_code, $resp_msg) = $client->quit();
+      ($resp_code, $resp_msg) = $client->quit();
 
-      $expected = 221;
+      my $expected = 221;
       $self->assert($expected == $resp_code,
         test_msg("Expected response code $expected, got $resp_code"));
 
@@ -2035,9 +1950,19 @@ sub abor_only_retr_binary_without_sendfile {
       die("Can't write $test_file: $!");
     }
 
+    # Make sure that, if we're running as root, that the test file has
+    # permissions/privs set for the account we create
+    if ($< == 0) {
+      unless (chown($setup->{uid}, $setup->{gid}, $test_file)) {
+        die("Can't set owner of $test_file to $setup->{uid}/$setup->{gid}: $!");
+      }
+    }
+
   } else {
     die("Can't open $test_file: $!");
   }
+
+  my $timeout_linger = 1;
 
   my $config = {
     PidFile => $setup->{pid_file},
@@ -2048,8 +1973,9 @@ sub abor_only_retr_binary_without_sendfile {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
-    TimeoutLinger => 5,
+    TimeoutLinger => $timeout_linger,
     UseSendfile => 'off',
 
     IfModules => {
@@ -2077,6 +2003,9 @@ sub abor_only_retr_binary_without_sendfile {
   defined(my $pid = fork()) or die("Can't fork: $!");
   if ($pid) {
     eval {
+      # Allow server to start up
+      sleep(1);
+
       my $client = ProFTPD::TestSuite::FTP->new('127.0.0.1', $port);
       $client->login($setup->{user}, $setup->{passwd});
       $client->type('binary');
@@ -2098,27 +2027,18 @@ sub abor_only_retr_binary_without_sendfile {
       unless ($@) {
         die("ABOR succeeded unexpectedly");
       }
+      sleep($timeout_linger + 1);
 
       # We expect 2 responses here: first, a 426 for the aborted data transfer,
       # followed by 226 for the successful ABOR command.  Order matters.
-      my $resp_msgs = $client->response_msgs();
-
-      my $resp_nmsgs = scalar(@$resp_msgs);
-      $self->assert($resp_nmsgs == 2,
-        test_msg("Expected 2 responses, got $resp_nmsgs"));
-
-      my $expected = 'Transfer aborted. Data connection closed.';
-      $self->assert($expected eq $resp_msgs->[0],
-        test_msg("Expected response message '$expected', got '$resp_msgs->[0]'"));
-
-      $expected = 'Abort successful';
-      $self->assert($expected eq $resp_msgs->[1],
-        test_msg("Expected response message '$expected', got '$resp_msgs->[1]'"));
+      my $resp_code = $client->response_code();
+      my $resp_msg = $client->response_msg();
+      $self->assert_transfer_ok($resp_code, $resp_msg, 1);
 
       # Make sure the control connection did not close because of the abort.
-      my ($resp_code, $resp_msg) = $client->quit();
+      ($resp_code, $resp_msg) = $client->quit();
 
-      $expected = 221;
+      my $expected = 221;
       $self->assert($expected == $resp_code,
         test_msg("Expected response code $expected, got $resp_code"));
 
@@ -2157,6 +2077,8 @@ sub abor_only_stor_ascii {
 
   my $test_file = File::Spec->rel2abs("$tmpdir/foo.txt");
 
+  my $timeout_linger = 1;
+
   my $config = {
     PidFile => $setup->{pid_file},
     ScoreboardFile => $setup->{scoreboard_file},
@@ -2166,8 +2088,9 @@ sub abor_only_stor_ascii {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
-    TimeoutLinger => 5,
+    TimeoutLinger => $timeout_linger,
 
     IfModules => {
       'mod_delay.c' => {
@@ -2194,6 +2117,9 @@ sub abor_only_stor_ascii {
   defined(my $pid = fork()) or die("Can't fork: $!");
   if ($pid) {
     eval {
+      # Allow server to start up
+      sleep(1);
+
       my $client = ProFTPD::TestSuite::FTP->new('127.0.0.1', $port);
       $client->login($setup->{user}, $setup->{passwd});
       $client->pasv();
@@ -2213,27 +2139,18 @@ sub abor_only_stor_ascii {
       unless ($@) {
         die("ABOR succeeded unexpectedly");
       }
+      sleep($timeout_linger + 1);
 
       # We expect 2 responses here: first, a 426 for the aborted data transfer,
       # followed by 226 for the successful ABOR command.  Order matters.
-      my $resp_msgs = $client->response_msgs();
-
-      my $resp_nmsgs = scalar(@$resp_msgs);
-      $self->assert($resp_nmsgs == 2,
-        test_msg("Expected 2 responses, got $resp_nmsgs"));
-
-      my $expected = 'Transfer aborted. Data connection closed.';
-      $self->assert($expected eq $resp_msgs->[0],
-        test_msg("Expected response message '$expected', got '$resp_msgs->[0]'"));
-
-      $expected = 'Abort successful';
-      $self->assert($expected eq $resp_msgs->[1],
-        test_msg("Expected response message '$expected', got '$resp_msgs->[1]'"));
+      my $resp_code = $client->response_code();
+      my $resp_msg = $client->response_msg();
+      $self->assert_transfer_ok($resp_code, $resp_msg, 1);
 
       # Make sure the control connection did not close because of the abort.
-      my ($resp_code, $resp_msg) = $client->quit();
+      ($resp_code, $resp_msg) = $client->quit();
 
-      $expected = 221;
+      my $expected = 221;
       $self->assert($expected == $resp_code,
         test_msg("Expected response message $expected, got $resp_code"));
 
@@ -2271,6 +2188,7 @@ sub abor_only_stor_binary {
   my $setup = test_setup($tmpdir, 'abor');
 
   my $test_file = File::Spec->rel2abs("$tmpdir/foo.txt");
+  my $timeout_linger = 1;
 
   my $config = {
     PidFile => $setup->{pid_file},
@@ -2281,8 +2199,9 @@ sub abor_only_stor_binary {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
-    TimeoutLinger => 5,
+    TimeoutLinger => $timeout_linger,
 
     IfModules => {
       'mod_delay.c' => {
@@ -2309,6 +2228,9 @@ sub abor_only_stor_binary {
   defined(my $pid = fork()) or die("Can't fork: $!");
   if ($pid) {
     eval {
+      # Allow server to start up
+      sleep(1);
+
       my $client = ProFTPD::TestSuite::FTP->new('127.0.0.1', $port);
       $client->login($setup->{user}, $setup->{passwd});
       $client->pasv();
@@ -2328,27 +2250,18 @@ sub abor_only_stor_binary {
       unless ($@) {
         die("ABOR succeeded unexpectedly");
       }
+      sleep($timeout_linger + 1);
 
       # We expect 2 responses here: first, a 426 for the aborted data transfer,
       # followed by 226 for the successful ABOR command.  Order matters.
-      my $resp_msgs = $client->response_msgs();
-
-      my $resp_nmsgs = scalar(@$resp_msgs);
-      $self->assert($resp_nmsgs == 2,
-        test_msg("Expected 2 responses, got $resp_nmsgs"));
-
-      my $expected = 'Transfer aborted. Data connection closed.';
-      $self->assert($expected eq $resp_msgs->[0],
-        test_msg("Expected response message '$expected', got '$resp_msgs->[0]'"));
-
-      $expected = 'Abort successful';
-      $self->assert($expected eq $resp_msgs->[1],
-        test_msg("Expected response message '$expected', got '$resp_msgs->[1]'"));
+      my $resp_code = $client->response_code();
+      my $resp_msg = $client->response_msg();
+      $self->assert_transfer_ok($resp_code, $resp_msg, 1);
 
       # Make sure the control connection did not close because of the abort.
-      my ($resp_code, $resp_msg) = $client->quit();
+      ($resp_code, $resp_msg) = $client->quit();
 
-      $expected = 221;
+      my $expected = 221;
       $self->assert($expected == $resp_code,
         test_msg("Expected response message $expected, got $resp_code"));
 
@@ -2385,6 +2298,8 @@ sub abor_only_list {
   my $tmpdir = $self->{tmpdir};
   my $setup = test_setup($tmpdir, 'abor');
 
+  my $timeout_linger = 1;
+
   my $config = {
     PidFile => $setup->{pid_file},
     ScoreboardFile => $setup->{scoreboard_file},
@@ -2394,8 +2309,9 @@ sub abor_only_list {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
-    TimeoutLinger => 5,
+    TimeoutLinger => $timeout_linger,
 
     IfModules => {
       'mod_delay.c' => {
@@ -2422,6 +2338,9 @@ sub abor_only_list {
   defined(my $pid = fork()) or die("Can't fork: $!");
   if ($pid) {
     eval {
+      # Allow server to start up
+      sleep(1);
+
       my $client = ProFTPD::TestSuite::FTP->new('127.0.0.1', $port);
       $client->login($setup->{user}, $setup->{passwd});
 
@@ -2443,27 +2362,18 @@ sub abor_only_list {
       unless ($@) {
         die("ABOR succeeded unexpectedly");
       }
+      sleep($timeout_linger + 1);
 
       # We expect 2 responses here: first, a 426 for the aborted data transfer,
       # followed by 226 for the successful ABOR command.  Order matters.
-      my $resp_msgs = $client->response_msgs();
-
-      my $resp_nmsgs = scalar(@$resp_msgs);
-      $self->assert($resp_nmsgs == 2,
-        test_msg("Expected 2 responses, got $resp_nmsgs"));
-
-      my $expected = 'Transfer aborted. Data connection closed.';
-      $self->assert($expected eq $resp_msgs->[0],
-        test_msg("Expected response message '$expected', got '$resp_msgs->[0]'"));
-
-      $expected = 'Abort successful';
-      $self->assert($expected eq $resp_msgs->[1],
-        test_msg("Expected response message '$expected', got '$resp_msgs->[1]'"));
+      my $resp_code = $client->response_code();
+      my $resp_msg = $client->response_msg();
+      $self->assert_transfer_ok($resp_code, $resp_msg, 1);
 
       # Make sure the control connection did not close because of the abort.
-      my ($resp_code, $resp_msg) = $client->quit();
+      ($resp_code, $resp_msg) = $client->quit();
 
-      $expected = 221;
+      my $expected = 221;
       $self->assert($expected == $resp_code,
         test_msg("Expected response code $expected, got $resp_code"));
 
@@ -2508,10 +2418,20 @@ sub abor_only_mlsd {
     if (open(my $fh, "> $path")) {
       close($fh);
 
+      # Make sure that, if we're running as root, that the test file has
+      # permissions/privs set for the account we create
+      if ($< == 0) {
+        unless (chown($setup->{uid}, $setup->{gid}, $path)) {
+          die("Can't set owner of $path to $setup->{uid}/$setup->{gid}: $!");
+        }
+      }
+
     } else {
       die("Can't open $path: $!");
     }
   }
+
+  my $timeout_linger = 1;
 
   my $config = {
     PidFile => $setup->{pid_file},
@@ -2522,8 +2442,9 @@ sub abor_only_mlsd {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
-    TimeoutLinger => 5,
+    TimeoutLinger => $timeout_linger,
 
     IfModules => {
       'mod_delay.c' => {
@@ -2550,6 +2471,9 @@ sub abor_only_mlsd {
   defined(my $pid = fork()) or die("Can't fork: $!");
   if ($pid) {
     eval {
+      # Allow server to start up
+      sleep(1);
+
       my $client = ProFTPD::TestSuite::FTP->new('127.0.0.1', $port);
       $client->login($setup->{user}, $setup->{passwd});
 
@@ -2567,27 +2491,18 @@ sub abor_only_mlsd {
       unless ($@) {
         die("ABOR succeeded unexpectedly");
       }
+      sleep($timeout_linger + 1);
 
       # We expect 2 responses here: first, a 426 for the aborted data transfer,
       # followed by 226 for the successful ABOR command.  Order matters.
-      my $resp_msgs = $client->response_msgs();
-
-      my $resp_nmsgs = scalar(@$resp_msgs);
-      $self->assert($resp_nmsgs == 2,
-        test_msg("Expected 2 responses, got $resp_nmsgs"));
-
-      my $expected = 'Transfer aborted. Data connection closed.';
-      $self->assert($expected eq $resp_msgs->[0],
-        test_msg("Expected response message '$expected', got '$resp_msgs->[0]'"));
-
-      $expected = 'Abort successful';
-      $self->assert($expected eq $resp_msgs->[1],
-        test_msg("Expected response message '$expected', got '$resp_msgs->[1]'"));
+      my $resp_code = $client->response_code();
+      my $resp_msg = $client->response_msg();
+      $self->assert_transfer_ok($resp_code, $resp_msg, 1);
 
       # Make sure the control connection did not close because of the abort.
-      my ($resp_code, $resp_msg) = $client->quit();
+      ($resp_code, $resp_msg) = $client->quit();
 
-      $expected = 221;
+      my $expected = 221;
       $self->assert($expected == $resp_code,
         test_msg("Expected response code $expected, got $resp_code"));
 
@@ -2635,6 +2550,7 @@ sub abor_only_no_xfer {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     TimeoutLinger => 5,
 
@@ -2733,6 +2649,7 @@ sub data_eof_retr_ascii {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     TimeoutLinger => 5,
 
@@ -2853,6 +2770,7 @@ sub data_eof_retr_binary_with_sendfile {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     TimeoutLinger => 5,
 
@@ -2967,6 +2885,7 @@ sub data_eof_retr_binary_without_sendfile {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     TimeoutLinger => 5,
     UseSendfile => 'off',
@@ -3078,6 +2997,7 @@ sub data_eof_stor_ascii {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     TimeoutLinger => 5,
 
@@ -3185,6 +3105,7 @@ sub data_eof_stor_binary {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     TimeoutLinger => 5,
 
@@ -3290,6 +3211,7 @@ sub data_eof_list {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     TimeoutLinger => 5,
 
@@ -3413,6 +3335,7 @@ sub data_eof_mlsd {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     TimeoutLinger => 5,
 
@@ -3531,6 +3454,7 @@ sub data_eof_before_abor_retr_ascii {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     TimeoutLinger => 5,
 
@@ -3665,6 +3589,7 @@ sub data_eof_before_abor_retr_binary_with_sendfile {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     TimeoutLinger => 5,
 
@@ -3805,6 +3730,7 @@ sub data_eof_before_abor_retr_binary_without_sendfile {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     TimeoutLinger => 5,
     UseSendfile => 'off',
@@ -3930,6 +3856,7 @@ sub data_eof_before_abor_stor_ascii {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     TimeoutLinger => 5,
 
@@ -4051,6 +3978,7 @@ sub data_eof_before_abor_stor_binary {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     TimeoutLinger => 5,
 
@@ -4170,6 +4098,7 @@ sub data_eof_before_abor_list {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     TimeoutLinger => 5,
 
@@ -4307,6 +4236,7 @@ sub data_eof_before_abor_mlsd {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     TimeoutLinger => 5,
 

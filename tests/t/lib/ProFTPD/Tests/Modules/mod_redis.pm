@@ -109,11 +109,21 @@ sub list_tests {
   return testsuite_get_runnable_tests($TESTS);
 }
 
+sub get_redis_server {
+  my $redis_server = '127.0.0.1';
+  if (defined($ENV{REDIS_HOST})) {
+    $redis_server = $ENV{REDIS_HOST};
+  }
+
+  return $redis_server;
+}
+
 sub redis_list_delete {
   my $key = shift;
 
   require Redis;
   my $redis = Redis->new(
+    server => get_redis_server(),
     reconnect => 5,
     every => 250_000
   );
@@ -128,6 +138,7 @@ sub redis_list_getall {
 
   require Redis;
   my $redis = Redis->new(
+    server => get_redis_server(),
     reconnect => 5,
     every => 250_000
   );
@@ -143,6 +154,7 @@ sub redis_log_on_command {
   my $tmpdir = $self->{tmpdir};
   my $setup = test_setup($tmpdir, 'redis');
 
+  my $redis_server = get_redis_server();
   my $fmt_name = 'custom';
   redis_list_delete($fmt_name);
 
@@ -164,7 +176,7 @@ sub redis_log_on_command {
       # Note: we need to use arrays here, since order of directives matters.
       'mod_redis.c' => [
         'RedisEngine on',
-        'RedisServer 127.0.0.1:6379',
+        "RedisServer $redis_server:6379",
         "RedisLog $setup->{log_file}",
         "LogFormat $fmt_name \"%a %u\"",
         "RedisLogOnCommand PASS $fmt_name",
@@ -255,6 +267,7 @@ sub redis_log_on_command_custom_key {
   my $tmpdir = $self->{tmpdir};
   my $setup = test_setup($tmpdir, 'redis');
 
+  my $redis_server = get_redis_server();
   my $fmt_name = 'custom';
   my $key_name = "ftp.$setup->{user}.PASS";
   redis_list_delete($key_name);
@@ -277,7 +290,7 @@ sub redis_log_on_command_custom_key {
       # Note: we need to use arrays here, since order of directives matters.
       'mod_redis.c' => [
         'RedisEngine on',
-        'RedisServer 127.0.0.1:6379',
+        "RedisServer $redis_server:6379",
         "RedisLog $setup->{log_file}",
         "LogFormat $fmt_name \"%a %u\"",
         "RedisLogOnCommand PASS $fmt_name ftp.%u.%m",
@@ -376,6 +389,7 @@ sub redis_log_on_command_per_dir {
   my $sub_dir = File::Spec->rel2abs("$tmpdir/test.d");
   mkpath($sub_dir);
 
+  my $redis_server = get_redis_server();
   my $fmt_name = 'custom';
   redis_list_delete($fmt_name);
 
@@ -408,7 +422,7 @@ sub redis_log_on_command_per_dir {
     print $fh <<EOC;
 <IfModule mod_redis.c>
   RedisEngine on
-  RedisServer 127.0.0.1:6379
+  RedisServer $redis_server:6379
   RedisLog $setup->{log_file}
   LogFormat $fmt_name "%a %u"
 
@@ -505,6 +519,7 @@ sub redis_log_on_command_per_dir_none {
   my $sub_dir = File::Spec->rel2abs("$tmpdir/test.d");
   mkpath($sub_dir);
 
+  my $redis_server = get_redis_server();
   my $fmt_name = 'custom';
   redis_list_delete($fmt_name);
 
@@ -537,7 +552,7 @@ sub redis_log_on_command_per_dir_none {
     print $fh <<EOC;
 <IfModule mod_redis.c>
   RedisEngine on
-  RedisServer 127.0.0.1:6379
+  RedisServer $redis_server:6379
   RedisLog $setup->{log_file}
   LogFormat $fmt_name "%a %u"
 
@@ -627,6 +642,7 @@ sub redis_log_on_command_per_dir_none2 {
   my $sub_dir = File::Spec->rel2abs("$tmpdir/test.d");
   mkpath($sub_dir);
 
+  my $redis_server = get_redis_server();
   my $fmt_name = 'custom';
   redis_list_delete($fmt_name);
 
@@ -659,7 +675,7 @@ sub redis_log_on_command_per_dir_none2 {
     print $fh <<EOC;
 <IfModule mod_redis.c>
   RedisEngine on
-  RedisServer 127.0.0.1:6379
+  RedisServer $redis_server:6379
   RedisLog $setup->{log_file}
   LogFormat $fmt_name "%a %u"
 
@@ -746,6 +762,7 @@ sub redis_log_on_event {
   my $tmpdir = $self->{tmpdir};
   my $setup = test_setup($tmpdir, 'redis');
 
+  my $redis_server = get_redis_server();
   my $fmt_name = 'custom';
   redis_list_delete($fmt_name);
 
@@ -767,7 +784,7 @@ sub redis_log_on_event {
       # Note: we need to use arrays here, since order of directives matters.
       'mod_redis.c' => [
         'RedisEngine on',
-        'RedisServer 127.0.0.1:6379',
+        "RedisServer $redis_server:6379",
         "RedisLog $setup->{log_file}",
         "LogFormat $fmt_name \"%A %a %b %c %D %d %E %{epoch} %F %f %{gid} %g %H %h %I %{iso8601} %J %L %l %m %O %P %p %{protocol} %R %r %{remote-port} %S %s %T %t %U %u %{uid} %V %v %{version}\"",
         "RedisLogOnEvent ALL $fmt_name",
@@ -865,6 +882,7 @@ sub redis_log_on_event_custom_key {
   my $tmpdir = $self->{tmpdir};
   my $setup = test_setup($tmpdir, 'redis');
 
+  my $redis_server = get_redis_server();
   my $fmt_name = 'custom';
   my $key_name = 'ftp.127.0.0.1';
   redis_list_delete($key_name);
@@ -887,7 +905,7 @@ sub redis_log_on_event_custom_key {
       # Note: we need to use arrays here, since order of directives matters.
       'mod_redis.c' => [
         'RedisEngine on',
-        'RedisServer 127.0.0.1:6379',
+        "RedisServer $redis_server:6379",
         "RedisLog $setup->{log_file}",
         "LogFormat $fmt_name \"%A %a %b %c %D %d %E %{epoch} %F %f %{gid} %g %H %h %I %{iso8601} %J %L %l %m %O %P %p %{protocol} %R %r %{remote-port} %S %s %T %t %U %u %{uid} %V %v %{version}\"",
         "RedisLogOnEvent ALL $fmt_name ftp.%a",
@@ -988,6 +1006,7 @@ sub redis_log_on_event_per_dir {
   my $sub_dir = File::Spec->rel2abs("$tmpdir/test.d");
   mkpath($sub_dir);
 
+  my $redis_server = get_redis_server();
   my $fmt_name = 'custom';
   redis_list_delete($fmt_name);
 
@@ -1020,7 +1039,7 @@ sub redis_log_on_event_per_dir {
     print $fh <<EOC;
 <IfModule mod_redis.c>
   RedisEngine on
-  RedisServer 127.0.0.1:6379
+  RedisServer $redis_server:6379
   RedisLog $setup->{log_file}
   LogFormat $fmt_name "%a %u"
 
@@ -1117,6 +1136,7 @@ sub redis_log_on_event_per_dir_none {
   my $sub_dir = File::Spec->rel2abs("$tmpdir/test.d");
   mkpath($sub_dir);
 
+  my $redis_server = get_redis_server();
   my $fmt_name = 'custom';
   redis_list_delete($fmt_name);
 
@@ -1149,7 +1169,7 @@ sub redis_log_on_event_per_dir_none {
     print $fh <<EOC;
 <IfModule mod_redis.c>
   RedisEngine on
-  RedisServer 127.0.0.1:6379
+  RedisServer $redis_server:6379
   RedisLog $setup->{log_file}
   LogFormat $fmt_name "%a %u"
 
@@ -1239,6 +1259,7 @@ sub redis_log_on_event_per_dir_none2 {
   my $sub_dir = File::Spec->rel2abs("$tmpdir/test.d");
   mkpath($sub_dir);
 
+  my $redis_server = get_redis_server();
   my $fmt_name = 'custom';
   redis_list_delete($fmt_name);
 
@@ -1271,7 +1292,7 @@ sub redis_log_on_event_per_dir_none2 {
     print $fh <<EOC;
 <IfModule mod_redis.c>
   RedisEngine on
-  RedisServer 127.0.0.1:6379
+  RedisServer $redis_server:6379
   RedisLog $setup->{log_file}
   LogFormat $fmt_name "%a %u"
 
@@ -1358,6 +1379,7 @@ sub redis_log_fmt_extra_with_log_on_commmand {
   my $tmpdir = $self->{tmpdir};
   my $setup = test_setup($tmpdir, 'redis');
 
+  my $redis_server = get_redis_server();
   my $fmt_name = 'custom';
   redis_list_delete($fmt_name);
 
@@ -1379,7 +1401,7 @@ sub redis_log_fmt_extra_with_log_on_commmand {
       # Note: we need to use arrays here, since order of directives matters.
       'mod_redis.c' => [
         'RedisEngine on',
-        'RedisServer 127.0.0.1:6379',
+        "RedisServer $redis_server:6379",
         "RedisLog $setup->{log_file}",
         "LogFormat $fmt_name \"%a %u\"",
         "RedisLogOnCommand PASS $fmt_name",
@@ -1477,6 +1499,7 @@ sub redis_log_fmt_extra_with_log_on_event {
   my $tmpdir = $self->{tmpdir};
   my $setup = test_setup($tmpdir, 'redis');
 
+  my $redis_server = get_redis_server();
   my $fmt_name = 'custom';
   redis_list_delete($fmt_name);
 
@@ -1500,7 +1523,7 @@ sub redis_log_fmt_extra_with_log_on_event {
       # Note: we need to use arrays here, since order of directives matters.
       'mod_redis.c' => [
         'RedisEngine on',
-        'RedisServer 127.0.0.1:6379',
+        "RedisServer $redis_server:6379",
         "RedisLog $setup->{log_file}",
         "LogFormat $fmt_name \"%A %a %b %c %D %d %E %{epoch} %F %f %{gid} %g %H %h %I %{iso8601} %J %L %l %m %O %P %p %{protocol} %R %r %{remote-port} %S %s %T %t %U %u %{uid} %V %v %{version}\"",
         "RedisLogOnEvent ALL $fmt_name",

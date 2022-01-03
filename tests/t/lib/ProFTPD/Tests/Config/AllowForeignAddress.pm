@@ -85,6 +85,14 @@ sub fxp_denied {
       die("Can't write $src_file: $!");
     }
 
+    # Make sure that, if we're running as root, that the test file has
+    # permissions/privs set for the account we create
+    if ($< == 0) {
+      unless (chown($setup->{uid}, $setup->{gid}, $src_file)) {
+        die("Can't set owner of $src_file to $setup->{uid}/$setup->{gid}: $!");
+      }
+    }
+
   } else {
     die("Can't open $src_file: $!");
   }
@@ -98,6 +106,7 @@ sub fxp_denied {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     AllowForeignAddress => 'off',
 
@@ -244,6 +253,7 @@ sub fxp_denied_eprt {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     AllowForeignAddress => 'off',
 
@@ -391,6 +401,7 @@ sub fxp_port_denied_by_class {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     AllowForeignAddress => $class_name,
 
@@ -543,6 +554,7 @@ sub fxp_pasv_denied_by_class_issue1346 {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     AllowForeignAddress => $class_name,
 
@@ -691,6 +703,7 @@ sub fxp_allowed {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     AllowForeignAddress => 'on',
 
@@ -821,6 +834,7 @@ sub fxp_allowed_eprt {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     AllowForeignAddress => 'on',
 
@@ -955,6 +969,7 @@ sub fxp_port_allowed_by_class {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     AllowForeignAddress => $class_name,
 
@@ -1088,6 +1103,7 @@ sub fxp_pasv_allowed_by_class_issue1346 {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     AllowForeignAddress => $class_name,
 
@@ -1197,6 +1213,14 @@ sub fxp_allowed_2gb {
       die("Can't write $src_file: $!");
     }
 
+    # Make sure that, if we're running as root, that the test file has
+    # permissions/privs set for the account we create
+    if ($< == 0) {
+      unless (chown($setup->{uid}, $setup->{gid}, $src_file)) {
+        die("Can't set owner of $src_file to $setup->{uid}/$setup->{gid}: $!");
+      }
+    }
+
   } else {
     die("Can't open $src_file: $!");
   }
@@ -1210,6 +1234,7 @@ sub fxp_allowed_2gb {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     AllowForeignAddress => 'on',
 

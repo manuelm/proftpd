@@ -1155,6 +1155,8 @@ sub test_append_logfile {
 
 sub test_cleanup {
   my $log_file = shift;
+  return unless defined($log_file);
+
   my $ex = shift;
   my $keep_logfile = shift;
   $keep_logfile = 0 unless $keep_logfile;

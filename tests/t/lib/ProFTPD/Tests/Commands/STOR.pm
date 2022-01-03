@@ -52,9 +52,10 @@ my $TESTS = {
     test_class => [qw(forking)],
   },
 
+  # Rolled back per Bug#4332
   stor_abs_symlink_chrooted_bug4219 => {
     order => ++$order,
-    test_class => [qw(bug forking rootprivs)],
+    test_class => [qw(bug forking inprogress rootprivs)],
   },
 
   stor_rel_symlink => {
@@ -141,6 +142,7 @@ sub stor_ok_raw_active {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     IfModules => {
       'mod_delay.c' => {
@@ -227,6 +229,7 @@ sub stor_ok_raw_passive {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     IfModules => {
       'mod_delay.c' => {
@@ -313,6 +316,7 @@ sub stor_ok_binary_file {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     IfModules => {
       'mod_delay.c' => {
@@ -405,6 +409,7 @@ sub stor_ok_ascii_file {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     IfModules => {
       'mod_delay.c' => {
@@ -499,6 +504,7 @@ sub stor_ok_ascii_file_bug4237 {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     IfModules => {
       'mod_delay.c' => {
@@ -620,6 +626,7 @@ sub stor_ok_ascii_file_bug4277 {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     IfModules => {
       'mod_delay.c' => {
@@ -761,6 +768,18 @@ sub stor_abs_symlink {
   my $test_dir = File::Spec->rel2abs("$tmpdir/sub.d");
   mkpath($test_dir);
 
+  # Make sure that, if we're running as root, that the sub directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $test_dir)) {
+      die("Can't set perms on $test_dir to 0755: $!");
+    }
+
+    unless (chown($setup->{uid}, $setup->{gid}, $test_dir)) {
+      die("Can't set owner of $test_dir to $setup->{uid}/$setup->{gid}: $!");
+    }
+  }
+
   my $test_file = File::Spec->rel2abs("$test_dir/test.dat");
   my $test_symlink = File::Spec->rel2abs("$test_dir/test.lnk");
 
@@ -774,16 +793,6 @@ sub stor_abs_symlink {
     die("Can't symlink $test_symlink to $dst_path: $!");
   }
 
-  if ($< == 0) {
-    unless (chmod(0755, $test_dir)) {
-      die("Can't set perms on $test_dir to 0755: $!");
-    }
-
-    unless (chown($setup->{uid}, $setup->{gid}, $test_dir)) {
-      die("Can't set owner of $test_dir to $setup->{uid}/$setup->{gid}: $!");
-    }
-  }
-
   my $config = {
     PidFile => $setup->{pid_file},
     ScoreboardFile => $setup->{scoreboard_file},
@@ -791,6 +800,9 @@ sub stor_abs_symlink {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
+
+    AllowOverwrite => 'on',
 
     IfModules => {
       'mod_delay.c' => {
@@ -817,6 +829,9 @@ sub stor_abs_symlink {
   defined(my $pid = fork()) or die("Can't fork: $!");
   if ($pid) {
     eval {
+      # Allow server to start up
+      sleep(1);
+
       my $client = ProFTPD::TestSuite::FTP->new('127.0.0.1', $port, 0, 1);
       $client->login($setup->{user}, $setup->{passwd});
       $client->type('binary');
@@ -830,7 +845,7 @@ sub stor_abs_symlink {
 
       my $buf = "Foo!\r\n";
       $conn->write($buf, length($buf), 25);
-      eval { $conn->close() };
+      eval { $conn->close(5) };
 
       my $resp_code = $client->response_code();
       my $resp_msg = $client->response_msg();
@@ -878,6 +893,16 @@ sub stor_abs_symlink_chrooted_bug4219 {
   my $test_dir = File::Spec->rel2abs("$tmpdir/sub.d");
   mkpath($test_dir);
 
+  if ($< == 0) {
+    unless (chmod(0755, $test_dir)) {
+      die("Can't set perms on $test_dir to 0755: $!");
+    }
+
+    unless (chown($setup->{uid}, $setup->{gid}, $test_dir)) {
+      die("Can't set owner of $test_dir to $setup->{uid}/$setup->{gid}: $!");
+    }
+  }
+
   my $test_file = File::Spec->rel2abs("$test_dir/test.dat");
   my $test_symlink = File::Spec->rel2abs("$test_dir/test.lnk");
 
@@ -891,16 +916,6 @@ sub stor_abs_symlink_chrooted_bug4219 {
     die("Can't symlink $test_symlink to $dst_path: $!");
   }
 
-  if ($< == 0) {
-    unless (chmod(0755, $test_dir)) {
-      die("Can't set perms on $test_dir to 0755: $!");
-    }
-
-    unless (chown($setup->{uid}, $setup->{gid}, $test_dir)) {
-      die("Can't set owner of $test_dir to $setup->{uid}/$setup->{gid}: $!");
-    }
-  }
-
   my $config = {
     PidFile => $setup->{pid_file},
     ScoreboardFile => $setup->{scoreboard_file},
@@ -908,7 +923,9 @@ sub stor_abs_symlink_chrooted_bug4219 {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
+    AllowOverwrite => 'on',
     DefaultRoot => '~',
 
     IfModules => {
@@ -997,6 +1014,16 @@ sub stor_rel_symlink {
   my $test_dir = File::Spec->rel2abs("$tmpdir/sub.d");
   mkpath($test_dir);
 
+  if ($< == 0) {
+    unless (chmod(0755, $test_dir)) {
+      die("Can't set perms on $test_dir to 0755: $!");
+    }
+
+    unless (chown($setup->{uid}, $setup->{gid}, $test_dir)) {
+      die("Can't set owner of $test_dir to $setup->{uid}/$setup->{gid}: $!");
+    }
+  }
+
   my $test_file = File::Spec->rel2abs("$test_dir/test.dat");
 
   # Change to the test directory in order to create a relative path in the
@@ -1015,16 +1042,6 @@ sub stor_rel_symlink {
     die("Can't chdir to $cwd: $!");
   }
 
-  if ($< == 0) {
-    unless (chmod(0755, $test_dir)) {
-      die("Can't set perms on $test_dir to 0755: $!");
-    }
-
-    unless (chown($setup->{uid}, $setup->{gid}, $test_dir)) {
-      die("Can't set owner of $test_dir to $setup->{uid}/$setup->{gid}: $!");
-    }
-  }
-
   my $config = {
     PidFile => $setup->{pid_file},
     ScoreboardFile => $setup->{scoreboard_file},
@@ -1032,6 +1049,9 @@ sub stor_rel_symlink {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
+
+    AllowOverwrite => 'on',
 
     IfModules => {
       'mod_delay.c' => {
@@ -1119,6 +1139,18 @@ sub stor_rel_symlink_chrooted_bug4219 {
   my $test_dir = File::Spec->rel2abs("$tmpdir/sub.d");
   mkpath($test_dir);
 
+  # Make sure that, if we're running as root, that the sub directory has
+  # permissions/privs set for the account we create
+  if ($< == 0) {
+    unless (chmod(0755, $test_dir)) {
+      die("Can't set perms on $test_dir to 0755: $!");
+    }
+
+    unless (chown($setup->{uid}, $setup->{gid}, $test_dir)) {
+      die("Can't set owner of $test_dir to $setup->{uid}/$setup->{gid}: $!");
+    }
+  }
+
   my $test_file = File::Spec->rel2abs("$test_dir/test.dat");
 
   # Change to the test directory in order to create a relative path in the
@@ -1137,16 +1169,6 @@ sub stor_rel_symlink_chrooted_bug4219 {
     die("Can't chdir to $cwd: $!");
   }
 
-  if ($< == 0) {
-    unless (chmod(0755, $test_dir)) {
-      die("Can't set perms on $test_dir to 0755: $!");
-    }
-
-    unless (chown($setup->{uid}, $setup->{gid}, $test_dir)) {
-      die("Can't set owner of $test_dir to $setup->{uid}/$setup->{gid}: $!");
-    }
-  }
-
   my $config = {
     PidFile => $setup->{pid_file},
     ScoreboardFile => $setup->{scoreboard_file},
@@ -1154,7 +1176,9 @@ sub stor_rel_symlink_chrooted_bug4219 {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
+    AllowOverwrite => 'on',
     DefaultRoot => '~',
 
     IfModules => {
@@ -1247,6 +1271,7 @@ sub stor_fails_not_reg {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     AllowOverwrite => 'on',
 
@@ -1409,6 +1434,7 @@ sub stor_fails_no_path {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     IfModules => {
       'mod_delay.c' => {
@@ -1503,6 +1529,7 @@ sub stor_fails_eperm {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     IfModules => {
       'mod_delay.c' => {
@@ -1584,6 +1611,16 @@ sub stor_fails_abs_symlink_dir_enoent {
   my $test_dir = File::Spec->rel2abs("$tmpdir/sub.d");
   mkpath($test_dir);
 
+  if ($< == 0) {
+    unless (chmod(0755, $test_dir)) {
+      die("Can't set perms on $test_dir to 0755: $!");
+    }
+
+    unless (chown($setup->{uid}, $setup->{gid}, $test_dir)) {
+      die("Can't set owner of $test_dir to $setup->{uid}/$setup->{gid}: $!");
+    }
+  }
+
   my $test_file = File::Spec->rel2abs("$test_dir/test.d/test.dat");
   my $test_symlink = File::Spec->rel2abs("$test_dir/test.lnk");
 
@@ -1597,16 +1634,6 @@ sub stor_fails_abs_symlink_dir_enoent {
     die("Can't symlink $test_symlink to $dst_path: $!");
   }
 
-  if ($< == 0) {
-    unless (chmod(0755, $test_dir)) {
-      die("Can't set perms on $test_dir to 0755: $!");
-    }
-
-    unless (chown($setup->{uid}, $setup->{gid}, $test_dir)) {
-      die("Can't set owner of $test_dir to $setup->{uid}/$setup->{gid}: $!");
-    }
-  }
-
   my $config = {
     PidFile => $setup->{pid_file},
     ScoreboardFile => $setup->{scoreboard_file},
@@ -1614,6 +1641,9 @@ sub stor_fails_abs_symlink_dir_enoent {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
+
+    AllowOverwrite => 'on',
 
     IfModules => {
       'mod_delay.c' => {
@@ -1724,7 +1754,9 @@ sub stor_fails_abs_symlink_dir_enoent_chrooted_bug4219 {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
+    AllowOverwrite => 'on',
     DefaultRoot => '~',
 
     IfModules => {
@@ -1806,6 +1838,16 @@ sub stor_fails_rel_symlink_dir_enoent {
   my $test_dir = File::Spec->rel2abs("$tmpdir/sub.d");
   mkpath($test_dir);
 
+  if ($< == 0) {
+    unless (chmod(0755, $test_dir)) {
+      die("Can't set perms on $test_dir to 0755: $!");
+    }
+
+    unless (chown($setup->{uid}, $setup->{gid}, $test_dir)) {
+      die("Can't set owner of $test_dir to $setup->{uid}/$setup->{gid}: $!");
+    }
+  }
+
   my $test_file = File::Spec->rel2abs("$test_dir/test.d/test.dat");
 
   # Change to the test directory in order to create a relative path in the
@@ -1824,26 +1866,6 @@ sub stor_fails_rel_symlink_dir_enoent {
     die("Can't chdir to $cwd: $!");
   }
 
-  if ($< == 0) {
-    unless (chmod(0755, $test_dir)) {
-      die("Can't set perms on $test_dir to 0755: $!");
-    }
-
-    unless (chown($setup->{uid}, $setup->{gid}, $test_dir)) {
-      die("Can't set owner of $test_dir to $setup->{uid}/$setup->{gid}: $!");
-    }
-  }
-
-  if ($< == 0) {
-    unless (chmod(0755, $test_dir)) {
-      die("Can't set perms on $test_dir to 0755: $!");
-    }
-
-    unless (chown($setup->{uid}, $setup->{gid}, $test_dir)) {
-      die("Can't set owner of $test_dir to $setup->{uid}/$setup->{gid}: $!");
-    }
-  }
-
   my $config = {
     PidFile => $setup->{pid_file},
     ScoreboardFile => $setup->{scoreboard_file},
@@ -1851,6 +1873,9 @@ sub stor_fails_rel_symlink_dir_enoent {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
+
+    AllowOverwrite => 'on',
 
     IfModules => {
       'mod_delay.c' => {
@@ -1931,6 +1956,16 @@ sub stor_fails_rel_symlink_dir_enoent_chrooted_bug4219 {
   my $test_dir = File::Spec->rel2abs("$tmpdir/sub.d");
   mkpath($test_dir);
 
+  if ($< == 0) {
+    unless (chmod(0755, $test_dir)) {
+      die("Can't set perms on $test_dir to 0755: $!");
+    }
+
+    unless (chown($setup->{uid}, $setup->{gid}, $test_dir)) {
+      die("Can't set owner of $test_dir to $setup->{uid}/$setup->{gid}: $!");
+    }
+  }
+
   my $test_file = File::Spec->rel2abs("$test_dir/test.d/test.dat");
 
   # Change to the test directory in order to create a relative path in the
@@ -1949,26 +1984,6 @@ sub stor_fails_rel_symlink_dir_enoent_chrooted_bug4219 {
     die("Can't chdir to $cwd: $!");
   }
 
-  if ($< == 0) {
-    unless (chmod(0755, $test_dir)) {
-      die("Can't set perms on $test_dir to 0755: $!");
-    }
-
-    unless (chown($setup->{uid}, $setup->{gid}, $test_dir)) {
-      die("Can't set owner of $test_dir to $setup->{uid}/$setup->{gid}: $!");
-    }
-  }
-
-  if ($< == 0) {
-    unless (chmod(0755, $test_dir)) {
-      die("Can't set perms on $test_dir to 0755: $!");
-    }
-
-    unless (chown($setup->{uid}, $setup->{gid}, $test_dir)) {
-      die("Can't set owner of $test_dir to $setup->{uid}/$setup->{gid}: $!");
-    }
-  }
-
   my $config = {
     PidFile => $setup->{pid_file},
     ScoreboardFile => $setup->{scoreboard_file},
@@ -1976,7 +1991,9 @@ sub stor_fails_rel_symlink_dir_enoent_chrooted_bug4219 {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
+    AllowOverwrite => 'on',
     DefaultRoot => '~',
 
     IfModules => {
@@ -2064,6 +2081,7 @@ sub stor_leading_whitespace {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     IfModules => {
       'mod_delay.c' => {
@@ -2150,6 +2168,7 @@ sub stor_multiple_periods {
 
     AuthUserFile => $setup->{auth_user_file},
     AuthGroupFile => $setup->{auth_group_file},
+    AuthOrder => 'mod_auth_file.c',
 
     IfModules => {
       'mod_delay.c' => {
